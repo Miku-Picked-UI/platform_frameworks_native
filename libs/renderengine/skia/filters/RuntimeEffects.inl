@@ -28,7 +28,8 @@ Y(0x188a0000__DISPLAY_P3__false__0x90a0000__Shader,         17)
 Y(V0_SRGB__V0_SRGB__true__UNKNOWN__Shader,                  18)
 Y(0x188a0000__V0_SRGB__true__0x9010000__Shader,             19)
 X(BoxShadowEffect,                                          20)
-X(LiquidGlassEffect,                                      21)
+X(LiquidGlassEffect,                                        21)
+X(CosGlassEffect,                                           22)
 
  // IMPORTANT: Do not change the order of existing effects in this list.
  //

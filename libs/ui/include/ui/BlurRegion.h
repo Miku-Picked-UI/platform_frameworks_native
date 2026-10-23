@@ -35,13 +35,14 @@ struct BlurRegion {
     int top;
     int right;
     int bottom;
+    int32_t material = 0;
 
     inline bool operator==(const BlurRegion& other) const {
         return blurRadius == other.blurRadius && cornerRadiusTL == other.cornerRadiusTL &&
                 cornerRadiusTR == other.cornerRadiusTR && cornerRadiusBL == other.cornerRadiusBL &&
                 cornerRadiusBR == other.cornerRadiusBR && alpha == other.alpha &&
                 left == other.left && top == other.top && right == other.right &&
-                bottom == other.bottom;
+                bottom == other.bottom && material == other.material;
     }
 
     inline bool operator!=(const BlurRegion& other) const { return !(*this == other); }

@@ -1004,17 +1004,23 @@ void SkiaRenderEngine::drawLayersInternal(
                 }
 
                 canvas->concat(getSkM44(layer.blurRegionTransform).asM33());
-                for (auto region : layer.blurRegions) {
-                    if (cachedBlurs[region.blurRadius] == nullptr) {
-                        SFTRACE_NAME("BlurRegion");
-                        cachedBlurs[region.blurRadius] =
-                                mBlurFilter->generate(context, region.blurRadius, blurInput,
-                                                      blurRect);
-                    }
+                // Glass panels (material >= 5) are drawn before the other regions so the
+                // regions above them land on top.
+                for (const bool panel : {true, false}) {
+                    for (const auto& region : layer.blurRegions) {
+                        if (region.blurRadius == 0 || (region.material >= 5) != panel) continue;
+                        if (cachedBlurs[region.blurRadius] == nullptr) {
+                            SFTRACE_NAME("BlurRegion");
+                            cachedBlurs[region.blurRadius] =
+                                    mBlurFilter->generate(context, region.blurRadius, blurInput,
+                                                          blurRect);
+                        }
 
-                    mBlurFilter->drawBlurRegion(canvas, getBlurRRect(region), region.blurRadius,
-                                                1.0f, region.alpha, blurRect,
-                                                cachedBlurs[region.blurRadius], blurInput);
+                        mBlurFilter->drawBlurRegion(canvas, getBlurRRect(region),
+                                                    region.blurRadius, 1.0f, region.alpha,
+                                                    blurRect, cachedBlurs[region.blurRadius],
+                                                    blurInput, region.material);
+                    }
                 }
             }
         }
