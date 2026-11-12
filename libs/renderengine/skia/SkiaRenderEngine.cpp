@@ -242,6 +242,19 @@ static inline std::pair<SkRRect, SkRRect> getBoundsAndClip(
     return {SkRRect::MakeRect(bounds), clip};
 }
 
+// Miku-Picked UI: the radius a blur region is drawn with. A Liquid Glass slab (material 0) on a
+// layer that blurs its own backdrop reuses the backdrop's blur. SystemUI gives the glass the
+// shade's radius, but a frame late while the shade animates; a radius of its own costs a second
+// full blur of the layer (with fresh GPU surfaces) on every such frame, which made Quick
+// Settings stutter, for a difference nobody sees under the moving panel.
+static inline uint32_t regionBlurRadius(const android::renderengine::LayerSettings& layer,
+                                        const BlurRegion& region) {
+    if (region.blurRadius > 0 && region.material == 0 && layer.backgroundBlurRadius > 0) {
+        return static_cast<uint32_t>(layer.backgroundBlurRadius);
+    }
+    return region.blurRadius;
+}
+
 static inline bool layerHasBlur(const android::renderengine::LayerSettings& layer,
                                 bool colorTransformModifiesAlpha) {
     if (layer.backgroundBlurRadius > 0 || layer.blurRegions.size()) {
@@ -856,8 +869,8 @@ void SkiaRenderEngine::drawLayersInternal(
                 layer.backgroundBlurRadius < mBlurFilter->getMaxCrossFadeRadius()) {
                 requiresCompositionLayer = true;
             }
-            for (auto region : layer.blurRegions) {
-                if (region.blurRadius < mBlurFilter->getMaxCrossFadeRadius()) {
+            for (const auto& region : layer.blurRegions) {
+                if (regionBlurRadius(layer, region) < mBlurFilter->getMaxCrossFadeRadius()) {
                     requiresCompositionLayer = true;
                 }
             }
@@ -976,8 +989,9 @@ void SkiaRenderEngine::drawLayersInternal(
                         layer.backgroundBlurRadius < mBlurFilter->getMaxCrossFadeRadius()) {
                         requiresCrossFadeWithBlurInput = true;
                     }
-                    for (auto region : layer.blurRegions) {
-                        if (region.blurRadius < mBlurFilter->getMaxCrossFadeRadius()) {
+                    for (const auto& region : layer.blurRegions) {
+                        if (regionBlurRadius(layer, region) <
+                            mBlurFilter->getMaxCrossFadeRadius()) {
                             requiresCrossFadeWithBlurInput = true;
                         }
                     }
@@ -1015,16 +1029,15 @@ void SkiaRenderEngine::drawLayersInternal(
                 for (const bool panel : {true, false}) {
                     for (const auto& region : layer.blurRegions) {
                         if (region.blurRadius == 0 || (region.material >= 5) != panel) continue;
-                        if (cachedBlurs[region.blurRadius] == nullptr) {
+                        const uint32_t radius = regionBlurRadius(layer, region);
+                        if (cachedBlurs[radius] == nullptr) {
                             SFTRACE_NAME("BlurRegion");
-                            cachedBlurs[region.blurRadius] =
-                                    mBlurFilter->generate(context, region.blurRadius, blurInput,
-                                                          blurRect);
+                            cachedBlurs[radius] =
+                                    mBlurFilter->generate(context, radius, blurInput, blurRect);
                         }
 
-                        mBlurFilter->drawBlurRegion(canvas, getBlurRRect(region),
-                                                    region.blurRadius, 1.0f, region.alpha,
-                                                    blurRect, cachedBlurs[region.blurRadius],
+                        mBlurFilter->drawBlurRegion(canvas, getBlurRRect(region), radius, 1.0f,
+                                                    region.alpha, blurRect, cachedBlurs[radius],
                                                     blurInput, region.material);
                     }
                 }
