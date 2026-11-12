@@ -250,11 +250,12 @@ static inline std::pair<SkRRect, SkRRect> getBoundsAndClip(
 static inline uint32_t regionBlurRadius(const android::renderengine::LayerSettings& layer,
                                         const android::BlurRegion& region) {
     if (region.blurRadius > 0 && region.material == 0 && layer.backgroundBlurRadius > 0) {
-        // Only a radius close to the backdrop's (the frame of lag): glass that asks for a
-        // clearly different blur, such as the PIN keys over a lightly blurred bouncer, keeps it.
+        // Glass that asks for far more blur than the backdrop, such as the PIN keys over a
+        // lightly blurred bouncer, keeps its own. Anything else merges: the shade's glass lags
+        // its animated radius by a frame, and at a low shade blur strength that lag is often
+        // well over 30 %, which cost Quick Settings a second blur pass on most frames.
         const float backdrop = static_cast<float>(layer.backgroundBlurRadius);
-        const float diff = std::abs(static_cast<float>(region.blurRadius) - backdrop);
-        if (diff <= backdrop * 0.3f + 2.0f) {
+        if (static_cast<float>(region.blurRadius) <= backdrop * 2.0f + 10.0f) {
             return static_cast<uint32_t>(layer.backgroundBlurRadius);
         }
     }
