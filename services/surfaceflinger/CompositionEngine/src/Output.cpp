@@ -39,7 +39,9 @@
 
 #include <com_android_graphics_libgui_flags.h>
 
+#include <algorithm>
 #include <optional>
+#include <vector>
 #include <thread>
 
 #include "renderengine/ExternalTexture.h"
@@ -783,10 +785,24 @@ void Output::ensureOutputLayerIfVisible(sp<compositionengine::LayerFE>& layerFE,
     // one, or create a new one if we do not.
     auto outputLayer = ensureOutputLayer(prevOutputLayerIndex, layerFE);
 
-    coverage.aboveBlurRequests += static_cast<int32_t>(layerFEState->backgroundBlurRadius > 0);
-    // Each blur region can contain a separate blur radius so we need to count each region
-    // as a separate request.
-    coverage.aboveBlurRequests += static_cast<int32_t>(layerFEState->blurRegions.size());
+    // Miku-Picked UI: count the blur passes this layer costs, not its blur regions. RenderEngine
+    // blurs a layer once per distinct radius and every region of that radius reuses the pass
+    // (SkiaRenderEngine's cachedBlurs), so a Liquid Glass shade, whose tiles, cards and buttons
+    // are each a blur region at the shade's own radius, is one or two passes. Counting each
+    // region tripped kMaxBlurRequests on any glass surface and dropped every blur under it.
+    {
+        std::vector<uint32_t> radii;
+        if (layerFEState->backgroundBlurRadius > 0) {
+            radii.push_back(static_cast<uint32_t>(layerFEState->backgroundBlurRadius));
+        }
+        for (const auto& region : layerFEState->blurRegions) {
+            if (region.blurRadius > 0 &&
+                std::find(radii.begin(), radii.end(), region.blurRadius) == radii.end()) {
+                radii.push_back(region.blurRadius);
+            }
+        }
+        coverage.aboveBlurRequests += static_cast<int32_t>(radii.size());
+    }
 
     // Store the layer coverage information into the layer state as some of it
     // is useful later.
