@@ -248,7 +248,7 @@ static inline std::pair<SkRRect, SkRRect> getBoundsAndClip(
 // full blur of the layer (with fresh GPU surfaces) on every such frame, which made Quick
 // Settings stutter, for a difference nobody sees under the moving panel.
 static inline uint32_t regionBlurRadius(const android::renderengine::LayerSettings& layer,
-                                        const BlurRegion& region) {
+                                        const android::BlurRegion& region) {
     if (region.blurRadius > 0 && region.material == 0 && layer.backgroundBlurRadius > 0) {
         return static_cast<uint32_t>(layer.backgroundBlurRadius);
     }
